@@ -1,35 +1,43 @@
 package com.example.bianca.managebooks;
 
+import android.app.AlertDialog;
+import android.app.ListActivity;
+import android.app.LoaderManager;
 import android.content.Context;
+import android.content.CursorLoader;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.Loader;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+
+import android.view.ContextMenu;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.AdapterView;
 import android.widget.ListView;
+import android.widget.SimpleCursorAdapter;
 
-import com.example.bianca.managebooks.model.Book;
+import com.example.bianca.managebooks.contentprovider.BookContentProvider;
+import com.example.bianca.managebooks.database.BookTable;
 
-import java.util.ArrayList;
-import java.util.List;
+public class MainActivity extends ListActivity implements
+        LoaderManager.LoaderCallbacks<Cursor> {
 
-public class MainActivity extends AppCompatActivity {
+    private static final int ACTIVITY_CREATE = 0;
+    private static final int ACTIVITY_EDIT = 1;
+    private static final int DELETE_ID = Menu.FIRST + 1;
 
-    private ListView listView;
-    public static List<Book> books;
-    public static BookAdapter bookAdapter;
+    public SimpleCursorAdapter bookAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+
         final Context context = this;
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
@@ -41,26 +49,18 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        listView = (ListView) findViewById(R.id.listView);
-        createBooks();
-        bookAdapter = new BookAdapter(this, books);
-        listView.setAdapter(bookAdapter);
+        fillData();
+        registerForContextMenu(getListView());
+    }
 
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Book book = books.get(position);
+    @Override
+    protected void onListItemClick(ListView l, View v, int position, long id) {
+        super.onListItemClick(l, v, position, id);
+        Intent i = new Intent(this, BookDetailsActivity.class);
+        Uri bookUri = Uri.parse(BookContentProvider.CONTENT_URI + "/" + id);
+        i.putExtra(BookContentProvider.CONTENT_ITEM_TYPE, bookUri);
 
-                Intent detailIntent = new Intent(context, BookDetailsActivity.class);
-                detailIntent.putExtra("title", book.getTitle());
-                detailIntent.putExtra("author", book.getAuthorName());
-                detailIntent.putExtra("year", String.valueOf(book.getPublicationYear()));
-                // put the position in order to be able to modify the car when the save button is clicked
-                detailIntent.putExtra("position", String.valueOf(position));
-
-                startActivity(detailIntent);
-            }
-        });
+        startActivity(i);
     }
 
     @Override
@@ -85,11 +85,75 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void createBooks() {
-        books = new ArrayList<>();
-        for(int i=0;i<10;i++) {
-            Book book = new Book("Title"+i, "Author"+i, 1990+i);
-            books.add(book);
+    @Override
+    public boolean onContextItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case DELETE_ID:
+                AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item
+                        .getMenuInfo();
+                final Uri uri = Uri.parse(BookContentProvider.CONTENT_URI + "/"
+                        + info.id);
+
+                new AlertDialog.Builder(this)
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setTitle("Delete action")
+                        .setMessage("Are you sure you want to delete this book?")
+                        .setPositiveButton("Yes", new DialogInterface.OnClickListener()
+                        {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                getContentResolver().delete(uri, null, null);
+                                fillData();
+                            }
+
+                        })
+                        .setNegativeButton("No", null)
+                        .show();
+
+
+                return true;
         }
+        return super.onContextItemSelected(item);
+    }
+
+    private void fillData() {
+        // Fields from the database (projection)
+        // Must include the _id column for the adapter to work
+        String[] from = new String[] {BookTable.COLUMN_TITLE };
+        // Fields on the UI to which we map
+        int[] to = new int[] { R.id.titleItem };
+
+        getLoaderManager().initLoader(0, null, this);
+        bookAdapter = new SimpleCursorAdapter(this, R.layout.item, null, from,
+                to, 0);
+
+        setListAdapter(bookAdapter);
+    }
+
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v,
+                                    ContextMenu.ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+        menu.add(0, DELETE_ID, 0, "Delete");
+    }
+
+    // creates a new loader after the initLoader () call
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        String[] projection = { BookTable.COLUMN_ID, BookTable.COLUMN_TITLE };
+        CursorLoader cursorLoader = new CursorLoader(this,
+                BookContentProvider.CONTENT_URI, projection, null, null, null);
+        return cursorLoader;
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
+        bookAdapter.swapCursor(data);
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> loader) {
+        // data is not available anymore, delete reference
+        bookAdapter.swapCursor(null);
     }
 }

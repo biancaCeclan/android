@@ -11,10 +11,6 @@ import com.example.bianca.managebooks.model.Book;
 
 import java.util.List;
 
-/**
- * Created by dana on 11/10/2016.
- */
-
 public class BookAdapter extends BaseAdapter {
     private Context context;
     private LayoutInflater layoutInflater;

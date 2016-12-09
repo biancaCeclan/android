@@ -25,7 +25,13 @@
         <activity
             android:name=".BookDetailsActivity"
             android:label="@string/title_activity_book_details"
-            android:theme="@style/AppTheme.NoActionBar"></activity>
+            android:theme="@style/AppTheme.NoActionBar"
+            />
+
+        <provider
+            android:authorities="com.example.bianca.managebooks.contentprovider"
+            android:name=".contentprovider.BookContentProvider" >
+        </provider>
     </application>
 
 </manifest>

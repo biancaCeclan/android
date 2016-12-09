@@ -26,11 +26,20 @@
         android:layout_below="@id/titleNew"
         android:hint="Author name"/>
 
-    <EditText
+    <TextView
         android:id="@+id/yearNew"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/authorNew"
-        android:hint="Publication year"/>
+        android:hint="Publication year"
+        android:textSize="20dp"
+        android:onClick="showYearDialog"/>
+
+    <EditText
+        android:id="@+id/priceNew"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/yearNew"
+        android:hint="Price"/>
 
 </RelativeLayout>
