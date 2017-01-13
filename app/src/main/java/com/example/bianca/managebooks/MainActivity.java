@@ -13,6 +13,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 
+import android.support.v7.app.AppCompatActivity;
 import android.view.ContextMenu;
 import android.view.View;
 import android.view.Menu;
@@ -23,22 +24,82 @@ import android.widget.SimpleCursorAdapter;
 
 import com.example.bianca.managebooks.contentprovider.BookContentProvider;
 import com.example.bianca.managebooks.database.BookTable;
+import com.example.bianca.managebooks.firebaseutil.FirebaseUtil;
+import com.example.bianca.managebooks.model.Book;
 
-public class MainActivity extends ListActivity implements
-        LoaderManager.LoaderCallbacks<Cursor> {
+import java.util.ArrayList;
 
-    private static final int ACTIVITY_CREATE = 0;
-    private static final int ACTIVITY_EDIT = 1;
-    private static final int DELETE_ID = Menu.FIRST + 1;
+public class MainActivity extends AppCompatActivity {
 
-    public SimpleCursorAdapter bookAdapter;
+    private ListView listView;
+    public static BookAdapter adapter;
+
+    public static FirebaseUtil firebaseUtil;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        firebaseUtil = new FirebaseUtil();
+
         setContentView(R.layout.activity_main);
 
         final Context context = this;
+
+        if (firebaseUtil.getmFirebaseUser() == null) {
+            // Not logged in ==> launch the Log In activity
+            loadLogInView();
+        } else {
+            firebaseUtil.setmUserId(firebaseUtil.getmFirebaseUser().getUid());
+
+            listView = (ListView) findViewById(R.id.listView);
+            adapter = new BookAdapter(this);
+            firebaseUtil.addObserver(adapter);
+
+            listView.setAdapter(adapter);
+
+            fillData();
+
+            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                    Book book = adapter.getBookList().get(position);
+
+                    Intent detailIntent = new Intent(context, BookDetailsActivity.class);
+                    detailIntent.putExtra("title", book.getTitle());
+                    detailIntent.putExtra("author", book.getAuthorName());
+                    detailIntent.putExtra("year", String.valueOf(book.getPublicationYear()));
+                    detailIntent.putExtra("price", String.valueOf(book.getPrice()));
+                    detailIntent.putExtra("uuid", book.getUuid());
+
+                    detailIntent.putExtra("titles", (ArrayList<String>)adapter.getTitles());
+                    detailIntent.putExtra("prices", (ArrayList<Integer>)adapter.getPrices());
+
+                    startActivity(detailIntent);
+                }
+            });
+
+            listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+                @Override
+                public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+                    final Book book = adapter.getBookList().get(position);
+                    final String uuid = book.getUuid();
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .setTitle("Delete action")
+                            .setMessage("Are you sure you want to delete this book?")
+                            .setPositiveButton("Yes", new DialogInterface.OnClickListener()
+                            {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    firebaseUtil.remove(uuid, book);
+                                }
+                            })
+                            .setNegativeButton("No", null)
+                            .show();
+                    return true;
+                }
+            });
+        }
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -48,20 +109,8 @@ public class MainActivity extends ListActivity implements
                 startActivity(bookIntent);
             }
         });
-
-        fillData();
-        registerForContextMenu(getListView());
     }
 
-    @Override
-    protected void onListItemClick(ListView l, View v, int position, long id) {
-        super.onListItemClick(l, v, position, id);
-        Intent i = new Intent(this, BookDetailsActivity.class);
-        Uri bookUri = Uri.parse(BookContentProvider.CONTENT_URI + "/" + id);
-        i.putExtra(BookContentProvider.CONTENT_ITEM_TYPE, bookUri);
-
-        startActivity(i);
-    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -82,78 +131,27 @@ public class MainActivity extends ListActivity implements
             return true;
         }
 
+        if (id == R.id.action_logout) {
+            firebaseUtil.getmFirebaseAuth().signOut();
+            loadLogInView();
+        }
+
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    public boolean onContextItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case DELETE_ID:
-                AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item
-                        .getMenuInfo();
-                final Uri uri = Uri.parse(BookContentProvider.CONTENT_URI + "/"
-                        + info.id);
-
-                new AlertDialog.Builder(this)
-                        .setIcon(android.R.drawable.ic_dialog_alert)
-                        .setTitle("Delete action")
-                        .setMessage("Are you sure you want to delete this book?")
-                        .setPositiveButton("Yes", new DialogInterface.OnClickListener()
-                        {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                getContentResolver().delete(uri, null, null);
-                                fillData();
-                            }
-
-                        })
-                        .setNegativeButton("No", null)
-                        .show();
-
-
-                return true;
-        }
-        return super.onContextItemSelected(item);
-    }
-
     private void fillData() {
-        // Fields from the database (projection)
-        // Must include the _id column for the adapter to work
-        String[] from = new String[] {BookTable.COLUMN_TITLE };
-        // Fields on the UI to which we map
-        int[] to = new int[] { R.id.titleItem };
-
-        getLoaderManager().initLoader(0, null, this);
-        bookAdapter = new SimpleCursorAdapter(this, R.layout.item, null, from,
-                to, 0);
-
-        setListAdapter(bookAdapter);
+        firebaseUtil.fillData();
     }
 
-    @Override
-    public void onCreateContextMenu(ContextMenu menu, View v,
-                                    ContextMenu.ContextMenuInfo menuInfo) {
-        super.onCreateContextMenu(menu, v, menuInfo);
-        menu.add(0, DELETE_ID, 0, "Delete");
+    // for firebase
+    private void loadLogInView() {
+        Intent intent = new Intent(this, LogInActivity.class);
+        // this activity will become the start of a new task on this history stack
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        // this flag will cause any existing task that would be associated with the activity to be
+        // cleared before the activity is started
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
     }
 
-    // creates a new loader after the initLoader () call
-    @Override
-    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
-        String[] projection = { BookTable.COLUMN_ID, BookTable.COLUMN_TITLE };
-        CursorLoader cursorLoader = new CursorLoader(this,
-                BookContentProvider.CONTENT_URI, projection, null, null, null);
-        return cursorLoader;
-    }
-
-    @Override
-    public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
-        bookAdapter.swapCursor(data);
-    }
-
-    @Override
-    public void onLoaderReset(Loader<Cursor> loader) {
-        // data is not available anymore, delete reference
-        bookAdapter.swapCursor(null);
-    }
 }

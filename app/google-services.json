@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "703849093105",
+    "firebase_url": "https://managebooks-4d28e.firebaseio.com",
+    "project_id": "managebooks-4d28e",
+    "storage_bucket": "managebooks-4d28e.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:703849093105:android:9c6b33d1db0e70cb",
+        "android_client_info": {
+          "package_name": "com.example.bianca.managebooks"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "703849093105-fbenlhqfous9cgd840uj9ji13fcf3tau.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyApvcO2KFB-8g4V0xtF6AKqP7628Xayx4U"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -46,55 +46,45 @@ public class NewBookActivity extends AppCompatActivity {
                         || TextUtils.isEmpty(yearText.getText().toString()) || TextUtils.isEmpty(priceText.getText().toString())) {
                     Toast.makeText(view.getContext(), "No field can be empty", Toast.LENGTH_SHORT).show();
                 } else {
-                    NewBookActivity.this.saveState();
+                    String title = titleText.getText().toString();
+                    String author = authorText.getText().toString();
+                    Integer year = Integer.valueOf(yearText.getText().toString());
+                    Integer price = Integer.valueOf(priceText.getText().toString());
+                    Book book = new Book();
+                    book.setTitle(title);
+                    book.setAuthorName(author);
+                    book.setPublicationYear(year);
+                    book.setPrice(price);
+                    book.setUuid();
+
+                    MainActivity.firebaseUtil.add(book);
+
+                    sendEmail(book);
+
                     Toast.makeText(view.getContext(), "A new book was inserted", Toast.LENGTH_SHORT).show();
 
                     setResult(RESULT_OK);
                     finish();
+
                 }
             }
         });
     }
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        saveState();
-        outState.putParcelable(BookContentProvider.CONTENT_ITEM_TYPE, bookUri);
-    }
 
-    public void saveState() {
-        String title = titleText.getText().toString();
-        String author = authorText.getText().toString();
-        Integer year = Integer.valueOf(yearText.getText().toString());
-        Integer price = Integer.valueOf(priceText.getText().toString());
-
-        // only save if either title or author name
-        // is available
-        if (title.length() == 0 && author.length() == 0) {
-            return;
-        }
-
-        ContentValues values = new ContentValues();
-        values.put(BookTable.COLUMN_TITLE, title);
-        values.put(BookTable.COLUMN_AUTHOR, author);
-        values.put(BookTable.COLUMN_PUBLICATION_YEAR, year);
-        values.put(BookTable.COLUMN_PRICE, price);
-
-        // New book
-        bookUri = getContentResolver().insert(
-                BookContentProvider.CONTENT_URI, values);
-
+    public void sendEmail(Book book) {
         // send email using an email client
         Intent emailIntent = new Intent(Intent.ACTION_SEND);
         emailIntent.setType("message/rfc822");
         emailIntent.putExtra(Intent.EXTRA_EMAIL, new String[]{"bianca_ceclan@yahoo.com"});
         emailIntent.putExtra(Intent.EXTRA_SUBJECT, "Book insertion");
-        String emailBody = "The book : \n " + new Book(title, author, year, price).toString() + "\n  was inserted.";
+        String emailBody = "The book : \n " + book.toString() + "\n was inserted.";
         emailIntent.putExtra(Intent.EXTRA_TEXT, emailBody);
 
         try {
             startActivity(Intent.createChooser(emailIntent, "Email client:"));
             finish();
         }catch (android.content.ActivityNotFoundException ex) {
+
         }
     }
 

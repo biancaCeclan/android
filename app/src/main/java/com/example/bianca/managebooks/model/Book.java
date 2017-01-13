@@ -1,11 +1,16 @@
 package com.example.bianca.managebooks.model;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 public class Book {
     private Long id;
     private String title;
     private String authorName;
     private int publicationYear;
     private int price;
+    private String uuid;
 
     public Book(){
     }
@@ -55,6 +60,33 @@ public class Book {
 
     public void setPrice(int price) {
         this.price = price;
+    }
+
+    public String getUuid() {
+        if (uuid == null) {
+            uuid = UUID.randomUUID().toString();
+        }
+        return uuid;
+    }
+
+    public void setUuid() {
+        if (uuid == null) {
+            uuid = UUID.randomUUID().toString();
+        }
+    }
+
+    public void setUuid(String uuid) {
+        this.uuid = uuid;
+    }
+
+    public Map<String, Object> bookToMap() {
+        Map<String,Object> bookMap = new HashMap<>();
+        bookMap.put("uuid", uuid);
+        bookMap.put("title", title);
+        bookMap.put("authorName", authorName);
+        bookMap.put("publicationYear", publicationYear);
+        bookMap.put("price", price);
+        return bookMap;
     }
 
     @Override

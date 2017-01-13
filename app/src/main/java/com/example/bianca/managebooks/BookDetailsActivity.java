@@ -18,6 +18,7 @@ import android.widget.Toast;
 
 import com.example.bianca.managebooks.contentprovider.BookContentProvider;
 import com.example.bianca.managebooks.database.BookTable;
+import com.example.bianca.managebooks.model.Book;
 import com.example.bianca.managebooks.pickers.YearPicker;
 
 import org.achartengine.ChartFactory;
@@ -31,14 +32,17 @@ import org.achartengine.renderer.XYSeriesRenderer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class BookDetailsActivity extends AppCompatActivity {
-    private Uri bookUri;
     private EditText titleText;
     private EditText authorText;
     private static TextView yearText;
     private EditText priceText;
     private Long id;
+    private List<String> titles;
+    private List<Integer> prices;
+    private String uuid;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -55,17 +59,19 @@ public class BookDetailsActivity extends AppCompatActivity {
 
         Bundle extras = getIntent().getExtras();
 
-        // check from the saved Instance
-        bookUri = (savedInstanceState == null) ? null : (Uri) savedInstanceState
-                .getParcelable(BookContentProvider.CONTENT_ITEM_TYPE);
+        String title = i.getExtras().getString("title");
+        String author = i.getExtras().getString("author");
+        String year = i.getExtras().getString("year");
+        String price = i.getExtras().getString("price");
+        uuid = i.getExtras().getString("uuid");
+        titles = i.getExtras().getStringArrayList("titles");
+        prices = i.getExtras().getIntegerArrayList("prices");
 
-        // Or passed from the other activity
-        if (extras != null) {
-            bookUri = extras
-                    .getParcelable(BookContentProvider.CONTENT_ITEM_TYPE);
+        titleText.setText(title);
+        authorText.setText(author);
+        yearText.setText(year);
+        priceText.setText(price);
 
-            fillData(bookUri);
-        }
         getChart();
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
@@ -76,64 +82,23 @@ public class BookDetailsActivity extends AppCompatActivity {
                         || TextUtils.isEmpty(yearText.getText().toString()) || TextUtils.isEmpty(priceText.getText().toString())) {
                     Toast.makeText(view.getContext(), "No field can be empty", Toast.LENGTH_SHORT).show();
                 } else {
-                    BookDetailsActivity.this.saveState();
-                    Toast.makeText(view.getContext(), "The data of the book was modified", Toast.LENGTH_SHORT).show();
+                    final Book book = new Book();
+                    book.setTitle(titleText.getText().toString());
+                    book.setAuthorName(authorText.getText().toString());
+                    book.setPublicationYear(Integer.valueOf(yearText.getText().toString()));
+                    book.setPrice(Integer.valueOf(priceText.getText().toString()));
+                    book.setUuid(uuid);
+
+                    Map<String,Object> bookMap = book.bookToMap();
+                    MainActivity.firebaseUtil.update(uuid, bookMap);
+
+                    Toast.makeText(view.getContext(), "The book was modified", Toast.LENGTH_SHORT).show();
 
                     setResult(RESULT_OK);
                     finish();
                 }
             }
         });
-    }
-
-    private void fillData(Uri uri) {
-        String[] projection = {BookTable.COLUMN_ID, BookTable.COLUMN_TITLE,
-                BookTable.COLUMN_AUTHOR, BookTable.COLUMN_PUBLICATION_YEAR, BookTable.COLUMN_PRICE };
-        Cursor cursor = getContentResolver().query(uri, projection, null, null,
-                null);
-        if (cursor != null) {
-            cursor.moveToFirst();
-            id = cursor.getLong(cursor.getColumnIndexOrThrow(BookTable.COLUMN_ID));
-            titleText.setText(cursor.getString(cursor
-                    .getColumnIndexOrThrow(BookTable.COLUMN_TITLE)));
-            authorText.setText(cursor.getString(cursor
-                    .getColumnIndexOrThrow(BookTable.COLUMN_AUTHOR)));
-            yearText.setText(cursor.getString(cursor
-                    .getColumnIndexOrThrow(BookTable.COLUMN_PUBLICATION_YEAR)));
-            priceText.setText(cursor.getString(cursor
-                    .getColumnIndexOrThrow(BookTable.COLUMN_PRICE)));
-            // always close the cursor
-            cursor.close();
-        }
-    }
-
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        saveState();
-        outState.putParcelable(BookContentProvider.CONTENT_ITEM_TYPE, bookUri);
-    }
-
-    public void saveState() {
-        String title = titleText.getText().toString();
-        String author = authorText.getText().toString();
-        Integer year = Integer.valueOf(yearText.getText().toString());
-        Integer price = Integer.valueOf(priceText.getText().toString());
-
-        // only save if either title or author name
-        // is available
-
-        if (title.length() == 0 && author.length() == 0) {
-            return;
-        }
-
-        ContentValues values = new ContentValues();
-        values.put(BookTable.COLUMN_TITLE, title);
-        values.put(BookTable.COLUMN_AUTHOR, author);
-        values.put(BookTable.COLUMN_PUBLICATION_YEAR, year);
-        values.put(BookTable.COLUMN_PRICE, price);
-
-        // Update book
-        getContentResolver().update(bookUri, values, null, null);
     }
 
     public void showYearDialog(View v) {
@@ -148,17 +113,12 @@ public class BookDetailsActivity extends AppCompatActivity {
 
     public void getChart() {
         XYSeries series = new XYSeries("");
-        String[] projection = {BookTable.COLUMN_TITLE, BookTable.COLUMN_PRICE };
-        Cursor cursor = getContentResolver().query(BookContentProvider.CONTENT_URI, projection, null, null,
-                null);
+
         List<String> text = new ArrayList<>();
-        cursor.moveToFirst();
-        for(int i = 0; i < cursor.getCount();i++) {
-            text.add(cursor.getString(0));
-            series.add(i, cursor.getInt(1));
-            cursor.moveToNext();
+        for(int i = 0; i < titles.size();i++) {
+            text.add(titles.get(i));
+            series.add(i, prices.get(i));
         }
-        cursor.close();
 
         // Now we create the renderer
         XYSeriesRenderer renderer = new XYSeriesRenderer();
